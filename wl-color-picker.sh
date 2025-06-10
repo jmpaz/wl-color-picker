@@ -16,15 +16,19 @@ showhelp() {
     echo "A basic wlroots compatible color picker script."
     echo ""
     echo "Usage:"
-    echo "  wl-color-picker [command] [options]"
+    echo "  wl-color-picker [options]"
     echo ""
-    echo "Commands:"
-    echo "  clipboard       Copy color to clipboard without dialog"
-    echo "    --no-notify   Don't show a system notification of copied color"
+    echo "Options:"
+    echo "  --dest DEST     Output destination: comma-separated list of 'stdout' and/or 'clipboard' (default: stdout)"
+    echo "  -c, --copy      Also copy to clipboard (equivalent to --dest stdout,clipboard)"
+    echo "  --picker        Show color picker dialog to adjust color before output"
+    echo "  --notify        Show system notification with the color"
+    echo "  -h, --help      Show this help message"
 }
 
-CLIPBOARD=0
-NO_NOTIFY=0
+DEST="stdout"
+USE_PICKER=0
+USE_NOTIFY=0
 
 while [ "$1" ]; do
     case $1 in
@@ -32,11 +36,25 @@ while [ "$1" ]; do
             showhelp
             exit
             ;;
+        '--dest' )
+            shift
+            DEST="$1"
+            ;;
+        '-c' | '--copy' )
+            DEST="stdout,clipboard"
+            ;;
+        '--picker' )
+            USE_PICKER=1
+            ;;
+        '--notify' )
+            USE_NOTIFY=1
+            ;;
+        # Legacy support
         'clipboard' )
-            CLIPBOARD=1
+            DEST="clipboard"
             ;;
         '--no-notify' )
-            NO_NOTIFY=1
+            USE_NOTIFY=0
             ;;
     esac
 
@@ -77,27 +95,47 @@ color=$(grim -g "$position" -t png - \
     | if [ "$color_field" -eq 1 ]; then rev | cut -d ' ' -f 1 | rev; else cut -d ' ' -f 4; fi
 )
 
-if [ $CLIPBOARD -eq 1 ]; then
-    echo $color | wl-copy -n
-    if [ $NO_NOTIFY -ne 1 ]; then
-        notify-send "Color copied to clipboard." $color
-    fi
-else
-    # Display a color picker and store the returned rgb color
+final_color="$color"
+
+# Show picker dialog if requested
+if [ $USE_PICKER -eq 1 ]; then
     rgb_color=$(zenity --color-selection \
-        --title="Copy color to Clipboard" \
+        --title="Adjust Color" \
         --color="${color}"
     )
 
-    # Execute if user didn't click cancel
+    # Convert rgb color to hex if user didn't cancel
     if [ "$rgb_color" != "" ]; then
-        # Convert rgb color to hex
         hex_color="#"
         for value in $(echo "${rgb_color}" | grep -E -o -m1 '[0-9]+'); do
            hex_color="$hex_color$(printf "%.2x" $value)"
         done
+        final_color="$hex_color"
+    fi
+fi
 
-        # Copy user selection to clipboard
-        echo $hex_color | wl-copy -n
+# Handle output destinations
+IFS=',' read -ra DESTS <<< "$DEST"
+for dest in "${DESTS[@]}"; do
+    case "$dest" in
+        "stdout")
+            echo "$final_color"
+            ;;
+        "clipboard")
+            echo "$final_color" | wl-copy -n
+            ;;
+        *)
+            echo "Invalid destination: $dest" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Show notification if requested
+if [ $USE_NOTIFY -eq 1 ]; then
+    if [[ "$DEST" == *"clipboard"* ]]; then
+        notify-send "$final_color" "copied to clipboard"
+    else
+        notify-send "$final_color"
     fi
 fi
