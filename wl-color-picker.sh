@@ -102,6 +102,11 @@ fi
 # Get color position
 position=$(slurp -b 00000000 -p)
 
+# Check if user cancelled selection
+if [ $? -ne 0 ] || [ -z "$position" ]; then
+    exit 0
+fi
+
 # Sleep to prevent issues with grim always returning improper color.
 sleep "$DELAY"
 
@@ -131,6 +136,11 @@ if [ $USE_PICKER -eq 1 ]; then
         --title="Adjust Color" \
         --color="${color}"
     )
+
+    # Check if user cancelled color picker
+    if [ $? -ne 0 ]; then
+        exit 0
+    fi
 
     # Convert rgb color to hex if user didn't cancel
     if [ "$rgb_color" != "" ]; then
