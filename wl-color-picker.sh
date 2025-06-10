@@ -81,6 +81,24 @@ if [ "$WAYLAND_DISPLAY" = "" ]; then
     exit 1
 fi
 
+# Check for required tools
+missing_tools=()
+if ! command -v slurp &> /dev/null; then
+    missing_tools+=("slurp")
+fi
+if ! command -v grim &> /dev/null; then
+    missing_tools+=("grim")
+fi
+
+if [ ${#missing_tools[@]} -ne 0 ]; then
+    error_msg="Missing required tools: ${missing_tools[*]}"
+    echo "$error_msg" >&2
+    if [ $USE_NOTIFY -eq 1 ]; then
+        notify-send "Error" "$error_msg"
+    fi
+    exit 1
+fi
+
 # Get color position
 position=$(slurp -b 00000000 -p)
 
