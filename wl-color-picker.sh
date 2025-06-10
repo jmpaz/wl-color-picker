@@ -61,20 +61,21 @@ sleep 1
 
 # Store the hex color value using graphicsmagick or imagemagick.
 if command -v /usr/bin/gm &> /dev/null; then
-    color=$(grim -g "$position" -t png - \
-        | /usr/bin/gm convert - -format '%[pixel:p{0,0}]' txt:- \
-        | tail -n 1 \
-        | rev \
-        | cut -d ' ' -f 1 \
-        | rev
-    )
+    convert_cmd="/usr/bin/gm convert"
+    color_field=1
+elif command -v magick &> /dev/null; then
+    convert_cmd="magick"
+    color_field=4
 else
-    color=$(grim -g "$position" -t png - \
-        | convert - -format '%[pixel:p{0,0}]' txt:- \
-        | tail -n 1 \
-        | cut -d ' ' -f 4
-    )
+    convert_cmd="convert"
+    color_field=4
 fi
+
+color=$(grim -g "$position" -t png - \
+    | $convert_cmd - -format '%[pixel:p{0,0}]' txt:- \
+    | tail -n 1 \
+    | if [ "$color_field" -eq 1 ]; then rev | cut -d ' ' -f 1 | rev; else cut -d ' ' -f 4; fi
+)
 
 if [ $CLIPBOARD -eq 1 ]; then
     echo $color | wl-copy -n
