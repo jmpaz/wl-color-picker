@@ -114,6 +114,15 @@ if [ $USE_PICKER -eq 1 ]; then
     fi
 fi
 
+# Add color name if API lookup is enabled
+if [ "$WL_PICKER_API" = "1" ] && command -v curl &> /dev/null; then
+    hex_clean=$(echo "$final_color" | sed 's/#//')
+    color_name=$(curl -s "https://www.thecolorapi.com/id?hex=$hex_clean" | grep -o '"name":{"value":"[^"]*"' | cut -d'"' -f6)
+    if [ -n "$color_name" ] && [ "$color_name" != "null" ]; then
+        final_color="$final_color ($color_name)"
+    fi
+fi
+
 # Handle output destinations
 IFS=',' read -ra DESTS <<< "$DEST"
 for dest in "${DESTS[@]}"; do
@@ -136,6 +145,6 @@ if [ $USE_NOTIFY -eq 1 ]; then
     if [[ "$DEST" == *"clipboard"* ]]; then
         notify-send "$final_color" "copied to clipboard"
     else
-        notify-send "$final_color"
+        notify-send "$final_color" "color picked"
     fi
 fi
