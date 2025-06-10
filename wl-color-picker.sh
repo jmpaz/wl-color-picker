@@ -23,12 +23,14 @@ showhelp() {
     echo "  -c, --copy      Also copy to clipboard (equivalent to --dest stdout,clipboard)"
     echo "  --picker        Show color picker dialog to adjust color before output"
     echo "  --notify        Show system notification with the color"
+    echo "  --delay SECONDS Delay in seconds before capturing (default: 1)"
     echo "  -h, --help      Show this help message"
 }
 
 DEST="stdout"
 USE_PICKER=0
 USE_NOTIFY=0
+DELAY=1
 
 while [ "$1" ]; do
     case $1 in
@@ -48,6 +50,15 @@ while [ "$1" ]; do
             ;;
         '--notify' )
             USE_NOTIFY=1
+            ;;
+        '--delay' )
+            shift
+            if [[ "$1" =~ ^[0-9]*\.?[0-9]+$ ]]; then
+                DELAY="$1"
+            else
+                echo "Error: --delay must be a valid number" >&2
+                exit 1
+            fi
             ;;
         # Legacy support
         'clipboard' )
@@ -73,9 +84,8 @@ fi
 # Get color position
 position=$(slurp -b 00000000 -p)
 
-# Sleep at least for a second to prevet issues with grim always
-# returning improper color.
-sleep 1
+# Sleep to prevent issues with grim always returning improper color.
+sleep "$DELAY"
 
 # Store the hex color value using graphicsmagick or imagemagick.
 if command -v /usr/bin/gm &> /dev/null; then
